@@ -14,7 +14,28 @@ var w = +(p.get('w') || 880), h = +(p.get('h') || 400);
 var f = document.getElementById('f');
 f.style.width = w + 'px';
 f.style.height = h + 'px';
-f.src = '../index.html?' + (p.get('q') || '');
+f.src = '../index.html?dev=1';
+
+// optional: ?inject=spire,rock  places hazards at fixed spots for art review
+f.addEventListener('load', function () {
+  var inj = p.get('inject');
+  if (!inj) return;
+  setTimeout(function () {
+    var w = f.contentWindow, S = w.__SR;
+    if (!S) return;
+    var g = S.game, GY = S.info().groundY;
+    S.startGame(); g.invincible = true;
+    g.obstacles.length = 0; g.pickups.length = 0;
+    var dims = { spire: [26, 0], rock: [28, 0], bones: [26, 0], stump: [15, 0], boulder: [25, 0], ptero: [29, -34] };
+    inj.split(',').forEach(function (kind, i) {
+      var d = dims[kind] || [24, 0];
+      g.obstacles.push({ kind: kind, x: 430 + i * 230, t: 0, dead: false, rot: 0, hit: false,
+        w: d[0] * 2, h: d[0] * 2, fly: d[1], y: GY + d[1] });
+    });
+    for (var i2 = 0; i2 < 6; i2++) S.step(1 / 120);
+    g.invincible = true;
+  }, 350);
+});
 </script>
 </body>
 </html>

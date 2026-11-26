@@ -15,8 +15,8 @@ game is one `index.html` with procedurally drawn art and synthesized sound.
 | **Tap again mid-air** | Double jump |
 | **M** | Mute |
 
-Keep the pair out of rocks, stumps, bone piles, boulders and low-swooping
-pterodactyls. Each egg is worth **5 m**. Your best run is saved on the device.
+Keep the pair out of rocks, stumps, bone piles, boulders, tall rock spires and
+low-swooping pterodactyls. Each egg is worth **5 m**. Your best run is saved on the device.
 
 The game is designed for landscape. In portrait it shows a "turn your phone" prompt
 (tap *play anyway* if you want to play in a narrow window).
@@ -69,8 +69,8 @@ Most knobs are near the top of the `<script>` in `index.html`:
 | What | Where | Default |
 |---|---|---|
 | Jump strength / gravity | `PHYS` | `jump: 880`, `gravity: 2500` |
-| Run speed and ramp | `update()` → `game.speed = clamp(380 + game.t * 7.4, 380, 940)` | 380 → 940 |
-| Obstacle spacing | `spawnObstacle()` → `game.speed * rand(0.86, 1.45)` | |
+| Run speed and ramp | `update()` → `game.speed = clamp(420 + game.t * 15.5, 420, 1120)` | 420 → 1120 (caps at ~45 s) |
+| Obstacle spacing | `spawnObstacle()` → `game.speed * rand(0.78, 1.28)` | |
 | Egg frequency | `spawnEggArc()` → `game.speed * rand(2.3, 3.6)` | |
 | Colours | the `C` palette object | dusk jungle |
 | Character art | `drawRig()` / `drawBoy()` / `drawObstacle()` | vector, no image files |
@@ -111,8 +111,8 @@ chrome --headless=new --virtual-time-budget=8000 --dump-dom \
   "http://localhost:8777/tests/sim.html?mode=apex"
 ```
 
-Current results: scripted player survives 6 min / 18 km / 0 deaths at max speed, an
-idle player dies at the first hazard (~88 m), tap-jump / double-jump / restart all pass.
+Current results: scripted player survives 6 min / 22 km / 0 deaths at max speed, an
+idle player dies at the first hazard (~85 m), tap-jump / double-jump / restart all pass.
 
 `index.html` also takes two optional query flags: `?autoplay=1` skips the menu
 (add `&t=15` to fast-forward) and `?dev=1` exposes `window.__SR` for debugging and

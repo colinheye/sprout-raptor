@@ -826,9 +826,10 @@ function drawBoy(st, bob, air) {
 function spawnObstacle() {
   var t = game.t;
   var pool = ['bones', 'rock', 'stump'];
-  if (t > 9) pool.push('ptero');
-  if (t > 20) pool.push('boulder');
-  if (t > 32) pool.push('ptero');
+  if (t > 6) pool.push('ptero');
+  if (t > 13) pool.push('boulder');
+  if (t > 24) pool.push('ptero');
+  if (t > 18) pool.push('spire');
   if (t > 45) pool.push('bones');
 
   var kind = pick(pool);
@@ -838,6 +839,7 @@ function spawnObstacle() {
   else if (kind === 'rock') { o.w = 56; o.h = 56; }
   else if (kind === 'stump') { o.w = 30; o.h = 62; }
   else if (kind === 'boulder') { o.w = 50; o.h = 50; o.rot = Math.random() * TAU; }
+  else if (kind === 'spire') { o.w = 44; o.h = 96; }
   else if (kind === 'ptero') {
     // skims in low and fast: you have to hop over it
     o.w = 58; o.h = 30; o.fly = -34;
@@ -845,7 +847,7 @@ function spawnObstacle() {
   o.y = groundY + (o.fly || 0);
   game.obstacles.push(o);
 
-  var gap = clamp(game.speed * rand(0.86, 1.45), 300, 1250);
+  var gap = clamp(game.speed * rand(0.78, 1.28), 290, 1300);
   game.spawnIn = gap + 40;
   if (kind === 'ptero') game.spawnIn += 120;
 }
@@ -924,6 +926,38 @@ function drawObstacle(o) {
     ctx.fillStyle = '#4a2f3d';
     ctx.beginPath(); ctx.moveTo(-14, -56); ctx.lineTo(-22, -74); ctx.lineTo(-6, -60); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(11, -60); ctx.lineTo(20, -78); ctx.lineTo(3, -62); ctx.closePath(); ctx.fill();
+  }
+
+  if (o.kind === 'spire') {
+    ctx.globalAlpha = 0.34;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(0, 3, 22, 5, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(-19, 0);
+    ctx.lineTo(-13, -54);
+    ctx.lineTo(-7, -90);
+    ctx.lineTo(5, -97);
+    ctx.lineTo(15, -58);
+    ctx.lineTo(19, 0);
+    ctx.closePath();
+    ctx.fillStyle = C.rockDark; ctx.fill();
+
+    // lit face
+    ctx.beginPath();
+    ctx.moveTo(-7, -90); ctx.lineTo(5, -97); ctx.lineTo(12, -56); ctx.lineTo(2, -48);
+    ctx.closePath();
+    ctx.fillStyle = '#5b4270'; ctx.fill();
+
+    // moss ledges
+    ctx.strokeStyle = C.moss; ctx.lineCap = 'round';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(-14, -58); ctx.quadraticCurveTo(-4, -64, 7, -57); ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(-8, -84); ctx.quadraticCurveTo(0, -88, 8, -82); ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
   if (o.kind === 'boulder') {
@@ -1178,7 +1212,7 @@ function startGame() {
   game.paused = false;
   game.t = 0; game.dist = 0; game.eggs = 0; game.score = 0;
   game.speed = 380;
-  game.spawnIn = 620;
+  game.spawnIn = 540;
   game.eggIn = 460;
   game.obstacles.length = 0;
   game.pickups.length = 0;
@@ -1232,6 +1266,7 @@ function obstacleBox(o) {
   if (o.kind === 'rock')   return { x: o.x - o.w / 2 + 5, y: groundY - 50, w: o.w - 10, h: 50 };
   if (o.kind === 'stump')  return { x: o.x - 12, y: groundY - 56, w: 24, h: 56 };
   if (o.kind === 'boulder')return { x: o.x - 23, y: groundY - 50, w: 46, h: 50 };
+  if (o.kind === 'spire')  return { x: o.x - 18, y: groundY - 92, w: 36, h: 92 };
   if (o.kind === 'ptero')  return { x: o.x - 28, y: o.y - 26, w: 54, h: 40 };
   return { x: o.x, y: groundY, w: 10, h: 10 };
 }
@@ -1263,7 +1298,7 @@ function update(dt) {
   }
 
   /* ---- playing ---- */
-  game.speed = clamp(380 + game.t * 7.4, 380, 940);
+  game.speed = clamp(420 + game.t * 15.5, 420, 1120);
   var sp = game.speed;
   game.worldX += sp * dt;
 

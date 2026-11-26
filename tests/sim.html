@@ -26,7 +26,7 @@ function run() {
     mode: mode, frames: 0, gameSecs: 0, runs: 0, deaths: 0,
     distAtDeath: [], maxDist: 0, totalDist: 0, eggs: 0,
     maxSpeed: 0, maxObstacles: 0, maxPickups: 0, nan: false,
-    killerKinds: {}, err: '', finalState: ''
+    killerKinds: {}, seenKinds: {}, err: '', finalState: ''
   };
 
   S.startGame();
@@ -85,6 +85,10 @@ function run() {
     prevState = g.state;
 
     if (g.state === 'over') { S.startGame(); S.game.invincible = false; lastObs = null; hold = 0; }
+    for (var z = 0; z < g.obstacles.length; z++) {
+      var kk = g.obstacles[z].kind;
+      st.seenKinds[kk] = (st.seenKinds[kk] || 0) + 1;
+    }
     st.maxDist = Math.max(st.maxDist, g.dist);
     st.maxSpeed = Math.max(st.maxSpeed, g.speed);
     st.maxObstacles = Math.max(st.maxObstacles, g.obstacles.length);
