@@ -482,7 +482,11 @@ var Sound = (function () {
   var ac = null, master = null, noiseBuf = null;
 
   function ensure() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
+    if (ac) {
+      if (ac.state !== 'running') ac.resume();        // iOS also reports "interrupted"
+      if (!muted && master && master.gain.value < 0.01) master.gain.value = 0.22;
+      return true;
+    }
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     ac = new AC();
@@ -505,7 +509,9 @@ var Sound = (function () {
     // if the context was suspended (phone call, backgrounding) re-anchor the
     // music clock when it comes back, otherwise its schedule is in the past
     ac.addEventListener('statechange', function () {
-      if (ac.state === 'running' && mus.on) mus.next = ac.currentTime + 0.08;
+      if (ac.state !== 'running') return;
+      if (mus.on) mus.next = ac.currentTime + 0.08;              // re-anchor the clock
+      else if (!muted && game.state === 'playing' && !game.paused) startMusic();
     });
     return true;
   }
@@ -634,6 +640,7 @@ var Sound = (function () {
 
   return {
     unlock: ensure,
+    ctx: function () { return ac; },        // exposed for the audio tests
     startMusic: startMusic,
     stopMusic: stopMusic,
     setMusicTempo: setMusicTempo,
@@ -1379,7 +1386,11 @@ function doJump(isDouble) {
   }
 }
 
-document.addEventListener('pointerdown', function () { Sound.unlock(); }, true);
+/* iOS only really starts an AudioContext from a completed gesture (pointerup /
+   click / touchend), not from pointerdown alone - so listen for all of them. */
+['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+  document.addEventListener(ev, function () { Sound.unlock(); }, true);
+});
 canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); onPress(); }, { passive: false });
 window.addEventListener('pointerup', onRelease);
 window.addEventListener('pointercancel', onRelease);
@@ -1929,6 +1940,7 @@ if (qs.has('dev')) {
   window.__SR = {
     game: game, player: player, onPress: onPress, onRelease: onRelease,
     startGame: startGame, setMode: setMode, obstacleBox: obstacleBox, playerBox: playerBox, step: update,
+    ctx: function () { return Sound.ctx(); },
     info: function () {
       return {
         VIEW_W: VIEW_W, VIEW_H: VIEW_H, groundY: groundY, scale: +scale.toFixed(3),
