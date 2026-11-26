@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>sim</title>
+<style>body{font:12px ui-monospace,monospace;background:#111;color:#8f8;margin:0}iframe{width:900px;height:420px;border:0}</style>
+</head>
+<body>
+<iframe id="f"></iframe>
+<pre id="out">pending</pre>
+<script>
+// Deterministic playtest: drives the real game through its own update/input code.
+//   ?mode=bot   scripted player that jumps at hazards (tests fairness)
+//   ?mode=idle  never jumps (tests that hazards actually kill)
+//   ?frames=N   number of 1/60s steps to simulate
+var q = new URLSearchParams(location.search);
+var mode = q.get('mode') || 'bot';
+var FRAMES = parseInt(q.get('frames') || '21600', 10);   // 6 minutes of game time
+var f = document.getElementById('f'), out = document.getElementById('out');
+f.src = '../index.html?dev=1&cb=' + Date.now();
+
+function run() {
+  var w = f.contentWindow;
+  if (!w || !w.__SR || !w.__SR.game) { setTimeout(run, 100); return; }
+  var S = w.__SR, g = S.game, p = S.player;
+
+  var st = {
+    mode: mode, frames: 0, gameSecs: 0, runs: 0, deaths: 0,
+    distAtDeath: [], maxDist: 0, totalDist: 0, eggs: 0,
+    maxSpeed: 0, maxObstacles: 0, maxPickups: 0, nan: false,
+    killerKinds: {}, err: '', finalState: ''
+  };
+
+  S.startGame();
+  S.game.invincible = false;
+
+  if (mode === 'apex') {
+    S.game.invincible = true;                 // physics only, ignore hazards
+    var tap = 0, held = 0, dbl = 0, i2;
+    S.onPress(); S.onRelease();
+    for (i2 = 0; i2 < 150; i2++) { S.step(1/60); tap = Math.max(tap, p.y); }
+    S.onPress();
+    for (i2 = 0; i2 < 150; i2++) { S.step(1/60); held = Math.max(held, p.y); }
+    S.onRelease();
+    for (i2 = 0; i2 < 90; i2++) S.step(1/60);
+    S.onPress(); S.onRelease();
+    for (i2 = 0; i2 < 12; i2++) S.step(1/60);
+    S.onPress(); S.onRelease();
+    for (i2 = 0; i2 < 150; i2++) { S.step(1/60); dbl = Math.max(dbl, p.y); }
+    out.textContent = JSON.stringify({ mode: 'apex', tapApex: Math.round(tap), holdApex: Math.round(held),
+      doubleJumpApex: Math.round(dbl), boxTopAboveGround: 82, tallestHazard: 62 }, null, 1);
+    return;
+  }
+
+  var hold = 0, lastObs = null, prevState = g.state;
+
+  for (var i = 0; i < FRAMES; i++) {
+    if (g.state === 'playing' && mode === 'bot') {
+      var nearest = null;
+      for (var k = 0; k < g.obstacles.length; k++) {
+        var o = g.obstacles[k];
+        if (o.x + o.w * 0.5 > p.x + 18 && (!nearest || o.x < nearest.x)) nearest = o;
+      }
+      if (nearest && nearest !== lastObs && p.onGround) {
+        var lead = 0.32 * g.speed + 44;
+        if (nearest.x - p.x < lead) { lastObs = nearest; S.onPress(); hold = 8; }
+      }
+    }
+    if (hold > 0) { hold--; if (hold === 0) S.onRelease(); }
+
+    S.step(1 / 60);
+    st.frames++;
+    if (!isFinite(p.y) || !isFinite(g.dist) || !isFinite(g.speed)) st.nan = true;
+
+    if (prevState !== 'dying' && g.state === 'dying') {
+      st.deaths++;
+      st.distAtDeath.push(Math.round(g.dist));
+      var killer = 'unknown';
+      for (var m = 0; m < g.obstacles.length; m++) {
+        if (Math.abs(g.obstacles[m].x - p.x) < 90) killer = g.obstacles[m].kind;
+      }
+      st.killerKinds[killer] = (st.killerKinds[killer] || 0) + 1;
+    }
+    if (prevState !== 'over' && g.state === 'over') {
+      st.runs++; st.totalDist += g.dist;
+    }
+    prevState = g.state;
+
+    if (g.state === 'over') { S.startGame(); S.game.invincible = false; lastObs = null; hold = 0; }
+    st.maxDist = Math.max(st.maxDist, g.dist);
+    st.maxSpeed = Math.max(st.maxSpeed, g.speed);
+    st.maxObstacles = Math.max(st.maxObstacles, g.obstacles.length);
+    st.maxPickups = Math.max(st.maxPickups, g.pickups.length);
+    st.eggs = Math.max(st.eggs, g.eggs);
+  }
+  st.gameSecs = +(st.frames / 60).toFixed(1);
+  st.finalState = g.state;
+  st.err = S.info().err;
+  st.totalDist = Math.round(st.totalDist);
+  st.maxDist = Math.round(st.maxDist);
+  out.textContent = JSON.stringify(st, null, 1);
+}
+f.addEventListener('load', function () { setTimeout(run, 150); });
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#241049"/>
+      <stop offset="0.52" stop-color="#7d2a63"/>
+      <stop offset="1" stop-color="#ff9b57"/>
+    </linearGradient>
+    <linearGradient id="skull" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#74d3a0"/>
+      <stop offset="1" stop-color="#3f9d70"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <circle cx="392" cy="118" r="62" fill="#ffe7bd" opacity="0.9"/>
+
+  <!-- ground band -->
+  <path d="M0 402 H512 V512 H0 Z" fill="#2b1439" opacity="0.85"/>
+  <rect y="402" width="512" height="7" fill="#ffb07c" opacity="0.6"/>
+
+  <!-- egg -->
+  <g transform="translate(104,330) rotate(-14)">
+    <path d="M0 -74 C44 -78 62 -30 62 8 C62 44 34 62 0 62 C-34 62 -62 44 -62 8 C-62 -30 -44 -78 0 -74 Z" fill="#fff6e0"/>
+    <circle cx="-16" cy="-6" r="10" fill="#e6d2a8"/>
+    <circle cx="22" cy="18" r="7" fill="#e6d2a8"/>
+    <circle cx="6" cy="42" r="6" fill="#e6d2a8"/>
+  </g>
+
+  <!-- raptor head -->
+  <g transform="translate(0,12)">
+    <path d="M150 300 C142 236 186 176 268 172 C340 168 396 208 408 262 C414 292 404 316 380 330 L338 340 L330 388 L286 392 L280 344 C236 352 196 348 172 330 Z" fill="url(#skull)"/>
+    <!-- snout -->
+    <path d="M372 244 C420 240 452 260 456 286 C458 306 438 320 402 322 L372 318 Z" fill="#5ec08c"/>
+    <!-- jaw -->
+    <path d="M300 330 C346 336 388 330 412 318 C404 344 366 360 320 356 Z" fill="#3f9d70"/>
+    <!-- teeth -->
+    <path d="M338 330 l10 18 l10 -18 z" fill="#fff6e0"/>
+    <path d="M372 328 l9 16 l9 -16 z" fill="#fff6e0"/>
+    <!-- eye -->
+    <circle cx="330" cy="238" r="30" fill="#ffcf5c"/>
+    <circle cx="336" cy="238" r="13" fill="#241424"/>
+    <circle cx="343" cy="230" r="5" fill="#fff6e0"/>
+    <!-- brow -->
+    <path d="M300 208 C316 198 350 198 364 210" stroke="#2b7a58" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <!-- head feathers -->
+    <path d="M214 196 C196 168 200 140 214 126" stroke="#2b7a58" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <path d="M242 184 C232 156 240 132 256 120" stroke="#2b7a58" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <path d="M272 180 C270 152 282 132 300 124" stroke="#2b7a58" stroke-width="12" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

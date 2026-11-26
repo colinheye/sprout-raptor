@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>shot harness</title>
+<style>html,body{margin:0;padding:0;background:#000;overflow:hidden}iframe{border:0;display:block}</style>
+</head>
+<body>
+<iframe id="f"></iframe>
+<script>
+// Screenshot harness: renders index.html into an exactly-sized iframe so headless
+// window chrome can't distort the viewport, e.g.
+//   shot.html?w=880&h=400&q=autoplay%3D1%26t%3D14
+var p = new URLSearchParams(location.search);
+var w = +(p.get('w') || 880), h = +(p.get('h') || 400);
+var f = document.getElementById('f');
+f.style.width = w + 'px';
+f.style.height = h + 'px';
+f.src = '../index.html?' + (p.get('q') || '');
+</script>
+</body>
+</html>

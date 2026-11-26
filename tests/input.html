@@ -1,0 +1,69 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>input</title>
+<style>body{font:12px ui-monospace,monospace;background:#111;color:#8f8;margin:0}iframe{width:880px;height:400px;border:0}</style>
+</head><body>
+<iframe id="f"></iframe><pre id="out">pending</pre>
+<script>
+// Verifies the real pointer path: overlays must not swallow taps meant for the canvas.
+var f = document.getElementById('f'), out = document.getElementById('out');
+f.src = '../index.html?dev=1&cb=' + Date.now();
+var R = {};
+
+function tapAt(el, x, y) {
+  var opts = { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch', isPrimary: true };
+  el.dispatchEvent(new PointerEvent('pointerdown', opts));
+  el.dispatchEvent(new PointerEvent('pointerup', opts));
+}
+
+function run() {
+  var w = f.contentWindow;
+  if (!w || !w.__SR) { setTimeout(run, 100); return; }
+  var S = w.__SR, g = S.game, p = S.player;
+  var doc = w.document;
+  var cx = w.innerWidth / 2, cy = w.innerHeight / 2;
+
+  // 1. what is under the finger while the menu is up?
+  var hit1 = doc.elementFromPoint(cx, cy);
+  R.menuTopElement = hit1 ? (hit1.id || hit1.className || hit1.tagName) : 'null';
+
+  // 2. tap it -> should start the game
+  tapAt(hit1, cx, cy);
+  R.startedByTap = g.state === 'playing';
+  R.menuHiddenAfterStart = w.getComputedStyle(doc.getElementById('menu')).visibility === 'hidden';
+  R.hudVisible = w.getComputedStyle(doc.getElementById('hud')).visibility !== 'hidden';
+
+  // 3. what is under the finger while playing?
+  var hit2 = doc.elementFromPoint(cx, cy);
+  R.playTopElement = hit2 ? (hit2.id || hit2.className || hit2.tagName) : 'null';
+
+  // 4. tap -> should jump
+  var vyBefore = p.vy;
+  tapAt(hit2, cx, cy);
+  R.jumpedOnTap = p.vy < vyBefore - 100;
+  R.heldFlag = p.holding === true;
+  w.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+  R.releasedFlag = p.holding === false;
+
+  // 5. double jump on a second tap mid-air
+  var jumpsBefore = p.jumps;
+  tapAt(hit2, cx, cy);
+  R.doubleJumped = p.jumps > jumpsBefore;
+
+  // 6. die, then tap to restart
+  g.invincible = false;
+  S.onRelease();
+  for (var i = 0; i < 4000 && g.state === 'playing'; i++) { S.onRelease(); S.step(1 / 60); }
+  R.diedWithoutInput = g.state !== 'playing';
+  for (var j = 0; j < 120; j++) S.step(1 / 60);
+  R.overShown = g.state === 'over';
+  var hit3 = doc.elementFromPoint(cx, cy);
+  R.overTopElement = hit3 ? (hit3.id || hit3.className || hit3.tagName) : 'null';
+  tapAt(hit3, cx, cy);
+  R.restartedByTap = g.state === 'playing';
+  R.err = S.info().err;
+
+  out.textContent = JSON.stringify(R, null, 1);
+}
+f.addEventListener('load', function () { setTimeout(run, 200); });
+</script>
+</body></html>
