@@ -61,7 +61,10 @@
     color:var(--cream); font-size:18px; line-height:1; display:grid; place-items:center;
     backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
   }
-  #muteBtn.off{ opacity:.45; }
+  #muteBtn.off{
+    background:rgba(239,107,74,.38); border-color:rgba(239,107,74,.75);
+    color:#ffe6dd;
+  }
   #fsBtn{ display:none; font-size:20px; }
 
   /* ---------------- Overlays ---------------- */
@@ -119,6 +122,12 @@
   }
   .ioshint b{ color:var(--amber); opacity:1; }
   .ioshint.show{ display:block; }
+  .mutedhint{
+    display:none; margin:8px 0 0; max-width:28ch;
+    font-size:clamp(10px,1.8vh,12px); line-height:1.4; font-weight:800;
+    color:#ffb59f; letter-spacing:.04em;
+  }
+  .mutedhint.show{ display:block; }
 
   .best{ margin:6px 0 0; font-size:clamp(12px,2vh,14px); font-weight:800; letter-spacing:.14em; text-transform:uppercase; opacity:.6; }
   .best span{ color:var(--amber); opacity:1; }
@@ -199,6 +208,7 @@
       <li><b>Hold</b> jump higher</li>
       <li><b>Tap again</b> double jump</li>
     </ul>
+    <p class="mutedhint" id="mutedHint">Sound is off &mdash; tap the speaker button, top right.</p>
     <p class="ioshint" id="iosHint">On iPhone, tap <b>Share</b> &rarr; <b>Add to Home Screen</b> to play with no browser bars.</p>
     <p class="best">Best <span id="menuBest">&mdash;</span></p>
   </div>
@@ -1369,6 +1379,7 @@ function doJump(isDouble) {
   }
 }
 
+document.addEventListener('pointerdown', function () { Sound.unlock(); }, true);
 canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); onPress(); }, { passive: false });
 window.addEventListener('pointerup', onRelease);
 window.addEventListener('pointercancel', onRelease);
@@ -1413,6 +1424,7 @@ var el = {
   mute: document.getElementById('muteBtn'),
   fs: document.getElementById('fsBtn'),
   iosHint: document.getElementById('iosHint'),
+  mutedHint: document.getElementById('mutedHint'),
   err: document.getElementById('err')
 };
 
@@ -1457,9 +1469,14 @@ function mutedState(m) {
   Sound.setMuted(m);
   el.mute.classList.toggle('off', m);
   el.mute.setAttribute('aria-pressed', String(!m));
-  el.mute.innerHTML = m ? '&#9834;&#8214;' : '&#9834;';
+  el.mute.innerHTML = m ? '&#128263;' : '&#9834;';
+  if (el.mutedHint) el.mutedHint.classList.toggle('show', m);
 }
-el.mute.addEventListener('click', function (e) { e.stopPropagation(); toggleMute(); });
+el.mute.addEventListener('click', function (e) {
+  e.stopPropagation();
+  toggleMute();
+  if (!mutedNow()) Sound.egg();   // hear it come back
+});
 el.mute.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
 
 /* ---------------- fullscreen ----------------

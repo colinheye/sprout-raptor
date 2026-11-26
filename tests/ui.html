@@ -52,6 +52,14 @@ function run() {
   R.appleTouchIcon = !!doc.querySelector('link[rel="apple-touch-icon"]');
   R.capableMeta = doc.querySelector('meta[name="apple-mobile-web-app-capable"]').content;
   R.viewportCover = /viewport-fit=cover/.test(doc.querySelector('meta[name="viewport"]').content);
+  // mute state must be plainly visible, not a subtle glyph change
+  var muteBtn = doc.getElementById('muteBtn');
+  tap(muteBtn);
+  R.mutedHintShown = w.getComputedStyle(doc.getElementById('mutedHint')).display !== 'none';
+  R.mutedIcon = muteBtn.textContent.trim();
+  R.mutedSaved = w.localStorage.getItem('sprout.raptor.muted');
+  tap(muteBtn);
+  R.unmutedHintHidden = w.getComputedStyle(doc.getElementById('mutedHint')).display === 'none';
   R.err = S.info().err;
   out.textContent = JSON.stringify(R, null, 1);
 }
