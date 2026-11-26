@@ -14,9 +14,33 @@ game is one `index.html` with procedurally drawn art and synthesized sound.
 | **Hold** | Jump higher |
 | **Tap again mid-air** | Double jump |
 | **M** | Mute |
+| **1 / 2 / 3** | Pick difficulty in the menu |
 
 Keep the pair out of rocks, stumps, bone piles, boulders, tall rock spires and
-low-swooping pterodactyls. Each egg is worth **5 m**. Your best run is saved on the device.
+low-swooping pterodactyls — plus twin slabs and rock walls in Reckless. Each egg is
+worth **5 m**. Best run is saved per difficulty.
+
+### Difficulty
+
+| Mode | Start speed | Ramp | Gap between hazards | Extras |
+|---|---|---|---|---|
+| **Chill** | 360 | +10 /s | 1.06–1.62 s | pteros at 16 s |
+| **Normal** | 420 | +15.5 /s | 0.78–1.28 s | pteros 6 s, boulders 13 s, spires 18 s |
+| **Reckless** | 480 | +22 /s | 0.62–1.02 s | everything sooner, fast pteros, twin slabs at 5 s, rock walls at 16 s |
+
+**There is no speed ceiling in any mode.** Speed climbs forever, so the run ends when
+the gap between a hazard appearing at the edge of the screen and reaching you gets
+shorter than you can react to:
+
+| Speed | Warning time |
+|---|---|
+| 1,120 (old cap) | 0.90 s |
+| 2,000 | 0.50 s |
+| 3,000 | 0.34 s |
+
+That is the wall you eventually hit — around 2–3 minutes of flawless running on Normal.
+Hazards are spaced by *arrival* time rather than spawn distance, so obstacles stay
+clearable even at absurd speeds; it's reaction time that runs out.
 
 The game is designed for landscape. In portrait it shows a "turn your phone" prompt
 (tap *play anyway* if you want to play in a narrow window).
@@ -69,8 +93,10 @@ Most knobs are near the top of the `<script>` in `index.html`:
 | What | Where | Default |
 |---|---|---|
 | Jump strength / gravity | `PHYS` | `jump: 880`, `gravity: 2500` |
-| Run speed and ramp | `update()` → `game.speed = clamp(420 + game.t * 15.5, 420, 1120)` | 420 → 1120 (caps at ~45 s) |
-| Obstacle spacing | `spawnObstacle()` → `game.speed * rand(0.78, 1.28)` | |
+| Difficulty modes | the `MODES` object near the top of the script | chill / normal / reckless |
+| Run speed and ramp | `update()` → `game.speed = M.start + game.t * M.ramp` | uncapped |
+| Hazard types & timing | `spawnObstacle()` → the `M.ptero` / `M.boulder` / `M.spire` / `M.twin` / `M.wall` thresholds | |
+| Obstacle spacing | `spawnObstacle()` → `closing * rand(M.gap[0], M.gap[1])` | |
 | Egg frequency | `spawnEggArc()` → `game.speed * rand(2.3, 3.6)` | |
 | Colours | the `C` palette object | dusk jungle |
 | Character art | `drawRig()` / `drawBoy()` / `drawObstacle()` | vector, no image files |
@@ -111,8 +137,10 @@ chrome --headless=new --virtual-time-budget=8000 --dump-dom \
   "http://localhost:8777/tests/sim.html?mode=apex"
 ```
 
-Current results: scripted player survives 6 min / 22 km / 0 deaths at max speed, an
-idle player dies at the first hazard (~85 m), tap-jump / double-jump / restart all pass.
+Add `&diff=chill|normal|reckless` to test a specific mode. Current results: a scripted
+player survives 6 minutes on Normal (reaching 6,000 px/s) and averages ~790 m on
+Reckless; an idle player dies at the first hazard (~85 m); tap-jump, double-jump,
+restart and the difficulty selector all pass.
 
 `index.html` also takes two optional query flags: `?autoplay=1` skips the menu
 (add `&t=15` to fast-forward) and `?dev=1` exposes `window.__SR` for debugging and

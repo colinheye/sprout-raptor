@@ -90,6 +90,19 @@
   }
   .btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #b9762a, 0 5px 12px rgba(0,0,0,.3); }
 
+  .modes{
+    display:flex; gap:4px; padding:4px; margin-top:2px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+    border-radius:999px; pointer-events:auto;
+  }
+  .mode{
+    font:inherit; font-weight:800; font-size:clamp(10px,1.9vh,12.5px); letter-spacing:.09em;
+    text-transform:uppercase; color:var(--cream); background:none; border:0;
+    padding:9px 15px; border-radius:999px; cursor:pointer; opacity:.55;
+    transition:background .15s ease, color .15s ease, opacity .15s ease;
+  }
+  .mode.is-on{ background:var(--cream); color:#2a1235; opacity:1; }
+
   .keys{ list-style:none; margin:8px 0 0; padding:0; display:flex; flex-wrap:wrap; justify-content:center; gap:6px 8px; }
   .keys li{
     font-size:clamp(11px,1.9vh,13px); font-weight:700; opacity:.85;
@@ -128,6 +141,23 @@
     background:#b3261e; color:#fff; font:12px/1.4 ui-monospace,monospace; padding:10px 14px;
     max-height:40vh; overflow:auto; white-space:pre-wrap;
   }
+  /* short landscape screens (older/smaller phones): trim the panel to fit */
+  @media (max-height:365px){
+    .overlay{ padding:10px; }
+    .panel{ gap:6px; }
+    h1{ font-size:clamp(22px,7vh,34px); }
+    h1 .amp{ margin:0; }
+    .tag{ display:none; }
+    .btn{ padding:11px 32px; }
+    .mode{ padding:8px 13px; }
+    .keys{ margin-top:2px; }
+    .best{ margin-top:2px; }
+  }
+  @media (max-height:330px){
+    .keys{ display:none; }
+    .big{ font-size:clamp(34px,9vh,52px); }
+  }
+
   @media (prefers-reduced-motion:reduce){ .phone{ animation:none } }
 </style>
 </head>
@@ -146,6 +176,11 @@
     <h1>Sprout <span class="amp">&amp;</span> Raptor</h1>
     <p class="tag">A blonde toddler and his velociraptor, out for a jog. Try to keep up.</p>
     <button id="playBtn" class="btn">Play</button>
+    <div class="modes" role="group" aria-label="Difficulty">
+      <button type="button" class="mode" data-mode="chill">Chill</button>
+      <button type="button" class="mode" data-mode="normal">Normal</button>
+      <button type="button" class="mode" data-mode="reckless">Reckless</button>
+    </div>
     <ul class="keys">
       <li><b>Tap</b> jump</li>
       <li><b>Hold</b> jump higher</li>
@@ -159,7 +194,7 @@
   <div class="panel">
     <h2 id="overTitle">Bonked!</h2>
     <p class="big"><span id="finalScore">0</span><small>m</small></p>
-    <p class="sub"><span id="eggSummary">0 eggs</span> &middot; Best <span id="overBest">&mdash;</span></p>
+    <p class="sub"><span id="overMode">Normal</span> &middot; <span id="eggSummary">0 eggs</span> &middot; Best <span id="overBest">&mdash;</span></p>
     <button id="againBtn" class="btn">Run again</button>
     <p class="hint">or tap anywhere</p>
   </div>
@@ -382,7 +417,39 @@ var PHYS = { gravity: 2500, holdGravity: 1560, jump: 880, doubleJump: 780, maxFa
 
 var HEIGHT_STAND = 96, WIDTH_BOX = 76, BOX_OFF = -32;
 
-try { game.best = parseInt(localStorage.getItem('sprout.raptor.best') || '0', 10) || 0; } catch (e) { game.best = 0; }
+/* ----------------------------- difficulty -----------------------------
+   Speed has no ceiling in any mode: the run ends when the time between a
+   hazard appearing at the edge of the screen and reaching you gets too
+   small to react to. Harder modes start faster, ramp harder, space
+   hazards closer together and unlock extra hazards sooner.            */
+var MODES = {
+  chill: {
+    label: 'Chill', start: 360, ramp: 10, gap: [1.06, 1.62],
+    ptero: 16, boulder: 30, spire: 46, twin: 0, wall: 0, pteroBoost: 60
+  },
+  normal: {
+    label: 'Normal', start: 420, ramp: 15.5, gap: [0.78, 1.28],
+    ptero: 6, boulder: 13, spire: 18, twin: 0, wall: 0, pteroBoost: 80
+  },
+  reckless: {
+    label: 'Reckless', start: 480, ramp: 22, gap: [0.62, 1.02],
+    ptero: 3, boulder: 7, spire: 10, twin: 5, wall: 16, pteroBoost: 135
+  }
+};
+var modeKey = 'normal';
+try {
+  var savedMode = localStorage.getItem('sprout.raptor.mode');
+  if (savedMode && MODES[savedMode]) modeKey = savedMode;
+} catch (e) {}
+function cfg() { return MODES[modeKey]; }
+
+function bestFor(k) {
+  try { return parseInt(localStorage.getItem('sprout.raptor.best.' + k) || '0', 10) || 0; } catch (e) { return 0; }
+}
+function saveBest(k, v) {
+  try { localStorage.setItem('sprout.raptor.best.' + k, String(v)); } catch (e) {}
+}
+game.best = bestFor(modeKey);
 var muted = false;
 try { muted = localStorage.getItem('sprout.raptor.muted') === '1'; } catch (e) {}
 
@@ -825,12 +892,13 @@ function drawBoy(st, bob, air) {
 /* ------------------------------ obstacles ----------------------------- */
 function spawnObstacle() {
   var t = game.t;
+  var M = game.M || cfg();
   var pool = ['bones', 'rock', 'stump'];
-  if (t > 6) pool.push('ptero');
-  if (t > 13) pool.push('boulder');
-  if (t > 24) pool.push('ptero');
-  if (t > 18) pool.push('spire');
-  if (t > 45) pool.push('bones');
+  if (t > M.ptero) pool.push('ptero');
+  if (t > M.boulder) pool.push('boulder');
+  if (t > M.spire) pool.push('spire');
+  if (M.twin && t > M.twin) { pool.push('twin'); pool.push('twin'); }
+  if (M.wall && t > M.wall) pool.push('wall');
 
   var kind = pick(pool);
   var o = { kind: kind, x: VIEW_W + 90, t: 0, dead: false, rot: 0, hit: false };
@@ -840,16 +908,22 @@ function spawnObstacle() {
   else if (kind === 'stump') { o.w = 30; o.h = 62; }
   else if (kind === 'boulder') { o.w = 50; o.h = 50; o.rot = Math.random() * TAU; }
   else if (kind === 'spire') { o.w = 44; o.h = 96; }
+  else if (kind === 'twin') { o.w = 96; o.h = 54; }
+  else if (kind === 'wall') { o.w = 64; o.h = 112; }
   else if (kind === 'ptero') {
     // skims in low and fast: you have to hop over it
     o.w = 58; o.h = 30; o.fly = -34;
   }
   o.y = groundY + (o.fly || 0);
+  o.boost = kind === 'ptero' ? M.pteroBoost : 0;
   game.obstacles.push(o);
 
-  var gap = clamp(game.speed * rand(0.78, 1.28), 290, 1300);
+  // Space hazards by *arrival* time, not spawn distance: a ptero travels
+  // faster than the world, so it needs a longer runway to avoid stacking up
+  // right behind whatever was spawned before it.
+  var closing = game.speed + (o.boost || 0);
+  var gap = Math.max(240, closing * rand(M.gap[0], M.gap[1]));
   game.spawnIn = gap + 40;
-  if (kind === 'ptero') game.spawnIn += 120;
 }
 
 function drawObstacle(o) {
@@ -958,6 +1032,64 @@ function drawObstacle(o) {
     ctx.globalAlpha = 0.7;
     ctx.beginPath(); ctx.moveTo(-8, -84); ctx.quadraticCurveTo(0, -88, 8, -82); ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  if (o.kind === 'twin') {
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(0, 3, 46, 6, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    [[-25, 46], [25, 52]].forEach(function (sp2) {
+      var ox = sp2[0], hh = sp2[1];
+      ctx.beginPath();
+      ctx.moveTo(ox - 20, 0);
+      ctx.lineTo(ox - 14, -hh * 0.62);
+      ctx.lineTo(ox - 3, -hh);
+      ctx.lineTo(ox + 12, -hh * 0.9);
+      ctx.lineTo(ox + 19, 0);
+      ctx.closePath();
+      ctx.fillStyle = ox < 0 ? C.rockDark : C.rock;
+      ctx.fill();
+      ctx.strokeStyle = C.moss; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(ox - 12, -hh * 0.6);
+      ctx.quadraticCurveTo(ox - 2, -hh * 0.74, ox + 8, -hh * 0.58);
+      ctx.stroke();
+    });
+  }
+
+  if (o.kind === 'wall') {
+    ctx.globalAlpha = 0.34;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(0, 3, 30, 6, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(-30, 0);
+    ctx.lineTo(-26, -78);
+    ctx.lineTo(-16, -106);
+    ctx.lineTo(16, -110);
+    ctx.lineTo(27, -74);
+    ctx.lineTo(30, 0);
+    ctx.closePath();
+    ctx.fillStyle = C.rockDark; ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(-16, -106); ctx.lineTo(16, -110); ctx.lineTo(20, -58); ctx.lineTo(-8, -54);
+    ctx.closePath();
+    ctx.fillStyle = '#5b4270'; ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.16)'; ctx.lineWidth = 3;
+    for (var st2 = 0; st2 < 3; st2++) {
+      var yy = -28 - st2 * 24;
+      ctx.beginPath();
+      ctx.moveTo(-24, yy);
+      ctx.quadraticCurveTo(0, yy - 5, 25, yy + 2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = C.moss; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-14, -104); ctx.quadraticCurveTo(2, -113, 16, -105); ctx.stroke();
   }
 
   if (o.kind === 'boulder') {
@@ -1116,6 +1248,11 @@ window.addEventListener('keydown', function (e) {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); onPress(); }
   if (e.code === 'Enter') { e.preventDefault(); if (game.state !== 'playing') onPress(); }
   if (e.code === 'KeyM') { toggleMute(); }
+  if (game.state !== 'playing') {
+    if (e.code === 'Digit1') setMode('chill');
+    if (e.code === 'Digit2') setMode('normal');
+    if (e.code === 'Digit3') setMode('reckless');
+  }
   if (e.code === 'KeyR' && game.state !== 'playing') onPress();
 });
 window.addEventListener('keyup', function (e) {
@@ -1140,6 +1277,7 @@ var el = {
   eggSummary: document.getElementById('eggSummary'),
   menuBest: document.getElementById('menuBest'),
   overBest: document.getElementById('overBest'),
+  overMode: document.getElementById('overMode'),
   rotate: document.getElementById('rotate'),
   mute: document.getElementById('muteBtn'),
   err: document.getElementById('err')
@@ -1156,6 +1294,27 @@ document.getElementById('anywayBtn').addEventListener('click', function (e) {
 
 function fmtBest(v) { return v > 0 ? v + ' m' : '\u2014'; }
 function updateBestLabels() { el.menuBest.textContent = fmtBest(game.best); }
+
+var modeBtns = document.querySelectorAll('.mode');
+function setMode(k) {
+  if (!MODES[k]) return;
+  modeKey = k;
+  try { localStorage.setItem('sprout.raptor.mode', k); } catch (e) {}
+  for (var i = 0; i < modeBtns.length; i++) {
+    modeBtns[i].classList.toggle('is-on', modeBtns[i].getAttribute('data-mode') === k);
+  }
+  game.best = bestFor(k);
+  updateBestLabels();
+}
+var modesWrap = document.querySelector('.modes');
+if (modesWrap) modesWrap.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+for (var mb = 0; mb < modeBtns.length; mb++) {
+  modeBtns[mb].addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+  modeBtns[mb].addEventListener('click', function (e) {
+    e.stopPropagation();
+    setMode(this.getAttribute('data-mode'));
+  });
+}
 
 function toggleMute() {
   mutedState(!mutedNow());
@@ -1211,8 +1370,10 @@ function startGame() {
   game.state = 'playing';
   game.paused = false;
   game.t = 0; game.dist = 0; game.eggs = 0; game.score = 0;
-  game.speed = 380;
-  game.spawnIn = 540;
+  game.M = cfg();
+  game.speed = game.M.start;
+  game.spawnIn = 560;
+  game.best = bestFor(modeKey);
   game.eggIn = 460;
   game.obstacles.length = 0;
   game.pickups.length = 0;
@@ -1231,10 +1392,10 @@ function gameOver() {
   game.state = 'over';
   game.overT = 0;
   var m = Math.floor(game.dist + game.eggs * 5);
-  if (m > game.best) {
-    game.best = m;
-    try { localStorage.setItem('sprout.raptor.best', String(m)); } catch (e) {}
-  }
+  var bk = bestFor(modeKey);
+  if (m > bk) { saveBest(modeKey, m); bk = m; }
+  game.best = bk;
+  el.overMode.textContent = MODES[modeKey].label;
   el.overTitle.textContent = pick(['Bonked!', 'Ouch!', 'Trip!', 'Oops!']);
   el.finalScore.textContent = String(m);
   el.eggSummary.textContent = game.eggs + (game.eggs === 1 ? ' egg' : ' eggs');
@@ -1267,6 +1428,8 @@ function obstacleBox(o) {
   if (o.kind === 'stump')  return { x: o.x - 12, y: groundY - 56, w: 24, h: 56 };
   if (o.kind === 'boulder')return { x: o.x - 23, y: groundY - 50, w: 46, h: 50 };
   if (o.kind === 'spire')  return { x: o.x - 18, y: groundY - 92, w: 36, h: 92 };
+  if (o.kind === 'twin')   return { x: o.x - 40, y: groundY - 50, w: 80, h: 50 };
+  if (o.kind === 'wall')   return { x: o.x - 26, y: groundY - 106, w: 52, h: 106 };
   if (o.kind === 'ptero')  return { x: o.x - 28, y: o.y - 26, w: 54, h: 40 };
   return { x: o.x, y: groundY, w: 10, h: 10 };
 }
@@ -1298,7 +1461,8 @@ function update(dt) {
   }
 
   /* ---- playing ---- */
-  game.speed = clamp(420 + game.t * 15.5, 420, 1120);
+  var M = game.M || cfg();
+  game.speed = M.start + game.t * M.ramp;   // no ceiling
   var sp = game.speed;
   game.worldX += sp * dt;
 
@@ -1352,7 +1516,7 @@ function update(dt) {
   for (var i = game.obstacles.length - 1; i >= 0; i--) {
     var o = game.obstacles[i];
     o.t += dt;
-    o.x -= (sp + (o.kind === 'ptero' ? 80 : 0)) * dt;
+    o.x -= (sp + (o.boost || 0)) * dt;
     if (o.kind === 'boulder') o.rot += dt * 5.4;
 
     if (o.kind === 'ptero' && Math.random() < dt * 3) {
@@ -1360,9 +1524,14 @@ function update(dt) {
     }
 
     var rec = !game.invincible;
-    if (rec && !o.hit && hitTest(playerBox(), obstacleBox(o), 7)) {
-      o.hit = true;
-      die();
+    if (rec && !o.hit) {
+      var ob = obstacleBox(o);
+      var mv = (sp + (o.boost || 0)) * dt;
+      if (mv > 12) ob.w += mv;   // sweep back over the path travelled this frame
+      if (hitTest(playerBox(), ob, 7)) {
+        o.hit = true;
+        die();
+      }
     }
     if (o.x < -140) game.obstacles.splice(i, 1);
   }
@@ -1374,10 +1543,15 @@ function update(dt) {
     p.t += dt;
     p.x -= sp * dt;
     if (p.x < -40) { game.pickups.splice(j, 1); continue; }
-    var cx = clamp(p.x, pb.x, pb.x + pb.w);
-    var cy = clamp(p.y, pb.y, pb.y + pb.h);
-    var dx = p.x - cx, dy = p.y - cy;
-    if (dx * dx + dy * dy < 15 * 15) {
+    var got = false, step = sp * dt;
+    for (var pass = 0; pass < 2 && !got; pass++) {
+      var ex = p.x + (pass ? step : 0);
+      var cx = clamp(ex, pb.x, pb.x + pb.w);
+      var cy = clamp(p.y, pb.y, pb.y + pb.h);
+      var dx = ex - cx, dy = p.y - cy;
+      if (dx * dx + dy * dy < 15 * 15) got = true;
+    }
+    if (got) {
       game.pickups.splice(j, 1);
       game.eggs++;
       el.eggCount.textContent = String(game.eggs);
@@ -1430,7 +1604,7 @@ function spawnEggArc() {
     }
     if (!blocked) game.pickups.push({ x: ex, y: ey, t: 0, ph: Math.random() * TAU });
   }
-  game.eggIn = clamp(game.speed * rand(2.3, 3.6), 900, 2800);
+  game.eggIn = Math.max(700, game.speed * rand(2.3, 3.6));
 }
 
 function die() {
@@ -1561,7 +1735,7 @@ window.addEventListener('error', function (ev) {
 layout();
 buildBackground();
 mutedState(muted);
-updateBestLabels();
+setMode(modeKey);
 game.state = 'menu';
 
 // debug hooks: ?dev=1 exposes internals for automated tests, ?autoplay=1 skips the menu
@@ -1569,7 +1743,7 @@ var qs = new URLSearchParams(location.search);
 if (qs.has('dev')) {
   window.__SR = {
     game: game, player: player, onPress: onPress, onRelease: onRelease,
-    startGame: startGame, obstacleBox: obstacleBox, playerBox: playerBox, step: update,
+    startGame: startGame, setMode: setMode, obstacleBox: obstacleBox, playerBox: playerBox, step: update,
     info: function () {
       return {
         VIEW_W: VIEW_W, VIEW_H: VIEW_H, groundY: groundY, scale: +scale.toFixed(3),

@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ui</title>
+<style>body{font:12px ui-monospace,monospace;background:#111;color:#8f8;margin:0}iframe{width:880px;height:400px;border:0}</style>
+</head><body>
+<iframe id="f"></iframe><pre id="out">pending</pre>
+<script>
+var f = document.getElementById('f'), out = document.getElementById('out');
+f.src = '../index.html?dev=1&cb=' + Date.now();
+var R = {};
+
+function tap(el) {
+  var o = { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch', isPrimary: true };
+  el.dispatchEvent(new PointerEvent('pointerdown', o));
+  el.dispatchEvent(new PointerEvent('pointerup', o));
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+}
+function on(btns, k) {
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].getAttribute('data-mode') === k) return btns[i].classList.contains('is-on');
+  }
+  return null;
+}
+
+function run() {
+  var w = f.contentWindow;
+  if (!w || !w.__SR) { setTimeout(run, 100); return; }
+  var S = w.__SR, g = S.game, doc = w.document;
+  var btns = doc.querySelectorAll('.mode');
+
+  R.modeButtonCount = btns.length;
+  R.defaultOn = ['chill', 'normal', 'reckless'].filter(function (k) { return on(btns, k); });
+
+  // tapping a difficulty must NOT start the run
+  var recklessBtn = doc.querySelector('[data-mode="reckless"]');
+  tap(recklessBtn);
+  R.stillInMenuAfterModeTap = g.state === 'menu';
+  R.recklessSelected = on(btns, 'reckless');
+  R.normalDeselected = !on(btns, 'normal');
+  R.persisted = w.localStorage.getItem('sprout.raptor.mode');
+
+  // the chosen mode drives the run
+  S.startGame();
+  R.startSpeed = Math.round(g.speed);
+  R.ramp = g.M ? g.M.ramp : null;
+  R.usesRecklessPool = !!(g.M && g.M.wall);
+
+  // per-mode best scores are kept apart
+  w.localStorage.setItem('sprout.raptor.best.reckless', '999');
+  w.localStorage.setItem('sprout.raptor.best.normal', '111');
+  R.err = S.info().err;
+  out.textContent = JSON.stringify(R, null, 1);
+}
+f.addEventListener('load', function () { setTimeout(run, 250); });
+</script>
+</body></html>

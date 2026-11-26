@@ -29,6 +29,9 @@ function run() {
     killerKinds: {}, seenKinds: {}, err: '', finalState: ''
   };
 
+  var diff = q.get('diff');
+  if (diff && S.setMode) S.setMode(diff);
+  st.mode = diff || 'normal';
   S.startGame();
   S.game.invincible = false;
 
