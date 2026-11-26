@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Audio test</title>
+<style>
+  body{margin:0;padding:24px 18px 40px;background:#150c2e;color:#fff6e6;
+       font:16px/1.45 -apple-system,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+  h1{font-size:20px;margin:0 0 4px}
+  p{font-size:14px;opacity:.75;margin:0 0 18px}
+  button{display:block;width:100%;margin:0 0 12px;padding:20px 16px;border:0;border-radius:16px;
+         font:700 17px/1.2 inherit;color:#2a1235;background:linear-gradient(180deg,#ffe08a,#ffc23f);
+         box-shadow:0 4px 0 #b9762a}
+  button:active{transform:translateY(3px);box-shadow:0 1px 0 #b9762a}
+  button.alt{background:linear-gradient(180deg,#8fe0b4,#4fbe86);box-shadow:0 4px 0 #2f7d63}
+  #log{margin-top:14px;padding:12px;border-radius:12px;background:rgba(255,255,255,.07);
+       font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word}
+  .note{margin-top:16px;font-size:13px;opacity:.8;border-left:3px solid #ffcf5c;padding-left:10px}
+</style>
+</head>
+<body>
+<h1>Sprout &amp; Raptor — audio test</h1>
+<p>Tap each button once. Volume up.</p>
+
+<button id="wa">1 &middot; Web Audio tone &nbsp;(440 Hz)<br><span style="font-weight:600;font-size:13px">what the game&rsquo;s music and effects use</span></button>
+<button id="el" class="alt">2 &middot; Audio element tone &nbsp;(660 Hz)<br><span style="font-weight:600;font-size:13px">what iOS treats as normal media playback</span></button>
+
+<div id="log">ready</div>
+
+<p class="note">
+  If you hear <b>2</b> but not <b>1</b>, iOS is muting Web Audio on this device &mdash; almost
+  always the hardware silent switch. If you hear neither, something else is wrong.
+</p>
+
+<script>
+var log = document.getElementById('log');
+var ac = null, lines = [];
+function say(s){ lines.push(s); log.textContent = lines.slice(-8).join('\n'); }
+
+function wavUrl(freq, dur){
+  var sr = 22050, n = Math.floor(sr*dur);
+  var buf = new ArrayBuffer(44 + n*2), v = new DataView(buf);
+  function ws(o,s){ for (var i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); }
+  ws(0,'RIFF'); v.setUint32(4,36+n*2,true); ws(8,'WAVE'); ws(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40,n*2,true);
+  for (var i=0;i<n;i++){
+    var t=i/sr, env=Math.min(1,t*30)*Math.min(1,(dur-t)*10);
+    v.setInt16(44+i*2, Math.sin(2*Math.PI*freq*t)*0.45*env*32767, true);
+  }
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+}
+
+document.getElementById('wa').addEventListener('click', function(){
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC){ say('no AudioContext in this browser'); return; }
+    if (!ac) ac = new AC();
+    var stateAtStart = ac.state;
+    if (ac.state === 'suspended') ac.resume();
+    var t = ac.currentTime;
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.value = 440;
+    g.gain.setValueAtTime(0.35, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t + 0.02); o.stop(t + 1);
+    say('Web Audio: state was "' + stateAtStart + '", now "' + ac.state + '"');
+    say('  sampleRate ' + ac.sampleRate + ', currentTime ' + ac.currentTime.toFixed(2));
+    setTimeout(function(){
+      say('  after 1s currentTime ' + ac.currentTime.toFixed(2) + ' (clock ' + (ac.currentTime > 0.5 ? 'RUNNING' : 'FROZEN') + ')');
+    }, 1000);
+  } catch (e) { say('Web Audio error: ' + e.message); }
+});
+
+document.getElementById('el').addEventListener('click', function(){
+  try {
+    var a = new Audio(wavUrl(660, 0.9));
+    a.play().then(function(){ say('Audio element: playing (media category)'); })
+            .catch(function(err){ say('Audio element blocked: ' + err.message); });
+  } catch (e) { say('Audio element error: ' + e.message); }
+});
+
+say('UA: ' + navigator.userAgent.slice(0, 90));
+</script>
+</body>
+</html>
