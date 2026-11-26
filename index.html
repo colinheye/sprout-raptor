@@ -1414,6 +1414,16 @@ window.addEventListener('keyup', function (e) {
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function () { setTimeout(layout, 120); });
 document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+/* iOS Safari ignores user-scalable=no, so a fast double tap zooms the page - and
+   because touch-action:none also blocks pinching, there was no way back out.
+   Cancelling the second touchend of a rapid pair kills the zoom. */
+var lastTouchEnd = 0;
+document.addEventListener('touchend', function (e) {
+  var now = Date.now();
+  if (now - lastTouchEnd <= 320) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
 document.addEventListener('visibilitychange', function () {
   if (document.hidden && game.state === 'playing') { game.paused = true; showPause(); }
 });
