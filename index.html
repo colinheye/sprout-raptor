@@ -1419,6 +1419,9 @@ document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
    Cancelling the second touchend of a rapid pair kills the zoom. */
 var lastTouchEnd = 0;
 document.addEventListener('touchend', function (e) {
+  // if the page is zoomed for any other reason, let the double tap undo it
+  var vv = window.visualViewport;
+  if (vv && vv.scale > 1.01) { lastTouchEnd = 0; return; }
   var now = Date.now();
   if (now - lastTouchEnd <= 320) e.preventDefault();
   lastTouchEnd = now;
