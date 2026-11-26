@@ -80,6 +80,29 @@ The game lands at `https://<user>.github.io/sprout-raptor/`.
 A custom domain is the only thing that costs money (~$10–15/year). Everything above
 is free at this scale, and stays free for a few hundred players.
 
+### Fullscreen on a phone
+
+**iPhone / iPad — the only route is Add to Home Screen.** Safari on iOS cannot hide its
+own URL bar from a web page: the Fullscreen API there only applies to `<video>`, not to
+pages, and the browser chrome is not page-controllable. Installed home-screen apps run
+with no browser chrome at all:
+
+1. Open the game in **Safari** (must be `http(s)`, not a `file://` copy).
+2. Tap the **Share** button → **Add to Home Screen** → *Add*.
+3. Launch it from the new icon: no URL bar, no tab bar, just the game.
+
+The menu shows this tip automatically when it detects iOS Safari and isn't already
+running standalone. The status bar (clock/battery) still overlays the top of the canvas —
+that's unavoidable — and the HUD offsets itself using the safe-area insets so the score
+is never hidden behind it.
+
+**Android** — Chrome → **⋮** → *Add to Home screen* / *Install app*, which is fullscreen
+thanks to `"display": "fullscreen"` in the manifest. In-browser there's also a fullscreen
+button in the top-right HUD.
+
+**Desktop / iPad** — the same HUD button, or <kbd>F11</kbd> / <kbd>⌃⌘F</kbd>. The button
+hides itself on iPhone, where it would do nothing.
+
 ### Send it to a phone
 - A plain link is enough — no app store, no install.
 - iOS Safari: *Share → Add to Home Screen* → it opens fullscreen with the raptor icon.
@@ -111,7 +134,7 @@ stays roughly constant).
 index.html            the whole game (HTML + CSS + JS, no assets to load)
 manifest.webmanifest  installable-app metadata (name, icon, landscape)
 sw.js                 network-first offline cache
-icon.svg / .png       app icons
+icon.svg / .png       app icons (180 px for iOS home screen, 192/512 for the manifest)
 docs/                 preview images
 tests/                automated playtests (see below)
 ```

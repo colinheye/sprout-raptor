@@ -12,7 +12,8 @@
 <title>Sprout &amp; Raptor</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
-<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png" />
+<link rel="mask-icon" href="icon.svg" color="#ef6b4a" />
 <style>
   :root{
     --ink:#150c2e;
@@ -52,14 +53,16 @@
     background:linear-gradient(160deg,#fffdf3,#e8d9b2); box-shadow:inset -2px -2px 0 rgba(0,0,0,.12);
     display:inline-block;
   }
-  #muteBtn{
-    margin-left:auto; pointer-events:auto; cursor:pointer;
+  .hud-actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+  #fsBtn, #muteBtn{
+    pointer-events:auto; cursor:pointer;
     width:40px; height:40px; border-radius:50%; flex:0 0 auto;
     background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.14);
     color:var(--cream); font-size:18px; line-height:1; display:grid; place-items:center;
     backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
   }
   #muteBtn.off{ opacity:.45; }
+  #fsBtn{ display:none; font-size:20px; }
 
   /* ---------------- Overlays ---------------- */
   .overlay{
@@ -110,6 +113,13 @@
     padding:6px 11px; border-radius:999px;
   }
   .keys b{ color:var(--amber); font-weight:900; }
+  .ioshint{
+    display:none; margin:8px 0 0; max-width:30ch;
+    font-size:clamp(10px,1.8vh,12px); line-height:1.4; opacity:.6; font-weight:700;
+  }
+  .ioshint b{ color:var(--amber); opacity:1; }
+  .ioshint.show{ display:block; }
+
   .best{ margin:6px 0 0; font-size:clamp(12px,2vh,14px); font-weight:800; letter-spacing:.14em; text-transform:uppercase; opacity:.6; }
   .best span{ color:var(--amber); opacity:1; }
   .big{ margin:0; font-size:clamp(46px,10vh,72px); font-weight:900; line-height:1; letter-spacing:-.03em; }
@@ -168,7 +178,10 @@
 <div id="hud" class="hidden">
   <div class="hud-score"><span id="score">0</span><span class="unit">m</span></div>
   <div class="hud-eggs"><span class="egg-ico"></span><span id="eggCount">0</span></div>
-  <button id="muteBtn" aria-label="Toggle sound" aria-pressed="true">&#9834;</button>
+  <div class="hud-actions">
+    <button id="fsBtn" aria-label="Fullscreen" title="Fullscreen">&#9974;</button>
+    <button id="muteBtn" aria-label="Toggle sound" aria-pressed="true">&#9834;</button>
+  </div>
 </div>
 
 <div id="menu" class="overlay">
@@ -186,6 +199,7 @@
       <li><b>Hold</b> jump higher</li>
       <li><b>Tap again</b> double jump</li>
     </ul>
+    <p class="ioshint" id="iosHint">On iPhone, tap <b>Share</b> &rarr; <b>Add to Home Screen</b> to play with no browser bars.</p>
     <p class="best">Best <span id="menuBest">&mdash;</span></p>
   </div>
 </div>
@@ -1280,6 +1294,8 @@ var el = {
   overMode: document.getElementById('overMode'),
   rotate: document.getElementById('rotate'),
   mute: document.getElementById('muteBtn'),
+  fs: document.getElementById('fsBtn'),
+  iosHint: document.getElementById('iosHint'),
   err: document.getElementById('err')
 };
 
@@ -1328,6 +1344,37 @@ function mutedState(m) {
 }
 el.mute.addEventListener('click', function (e) { e.stopPropagation(); toggleMute(); });
 el.mute.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+
+/* ---------------- fullscreen ----------------
+   iOS Safari can't fullscreen a web page on iPhone (only <video>), so the
+   button is hidden there and the menu points at Add to Home Screen instead,
+   which launches the game with no browser chrome at all. */
+var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function isStandalone() {
+  return window.navigator.standalone === true ||
+    !!(window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches ||
+                             window.matchMedia('(display-mode: fullscreen)').matches));
+}
+if (isIos && !isStandalone()) el.iosHint.classList.add('show');
+
+function toggleFullscreen() {
+  var doc = document, root = doc.documentElement;
+  var req = root.requestFullscreen || root.webkitRequestFullscreen;
+  var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+  var active = doc.fullscreenElement || doc.webkitFullscreenElement;
+  try {
+    var p;
+    if (active && exit) p = exit.call(doc);
+    else if (req) p = req.call(root);
+    if (p && p.catch) p.catch(function () {});
+  } catch (e) {}
+}
+if ((document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen) && !isIos) {
+  el.fs.style.display = 'grid';
+  el.fs.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+  el.fs.addEventListener('click', function (e) { e.stopPropagation(); toggleFullscreen(); });
+}
 
 document.getElementById('playBtn').addEventListener('click', function (e) { e.stopPropagation(); startGame(); });
 document.getElementById('againBtn').addEventListener('click', function (e) { e.stopPropagation(); startGame(); });

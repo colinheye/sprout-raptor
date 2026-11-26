@@ -47,6 +47,11 @@ function run() {
   // per-mode best scores are kept apart
   w.localStorage.setItem('sprout.raptor.best.reckless', '999');
   w.localStorage.setItem('sprout.raptor.best.normal', '111');
+  R.fullscreenBtnVisible = w.getComputedStyle(doc.getElementById('fsBtn')).display !== 'none';
+  R.iosHintHiddenOnDesktop = w.getComputedStyle(doc.getElementById('iosHint')).display === 'none';
+  R.appleTouchIcon = !!doc.querySelector('link[rel="apple-touch-icon"]');
+  R.capableMeta = doc.querySelector('meta[name="apple-mobile-web-app-capable"]').content;
+  R.viewportCover = /viewport-fit=cover/.test(doc.querySelector('meta[name="viewport"]').content);
   R.err = S.info().err;
   out.textContent = JSON.stringify(R, null, 1);
 }
