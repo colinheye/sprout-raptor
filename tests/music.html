@@ -1,0 +1,48 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>music</title>
+<style>body{font:12px ui-monospace,monospace;background:#111;color:#8f8;margin:0}iframe{width:880px;height:400px;border:0}</style>
+</head><body>
+<iframe id="f"></iframe><pre id="out">pending</pre>
+<script>
+var f = document.getElementById('f'), out = document.getElementById('out');
+f.src = '../index.html?dev=1&cb=' + Date.now();
+var R = {};
+
+function run() {
+  var w = f.contentWindow;
+  if (!w || !w.__SR) { setTimeout(run, 100); return; }
+  var S = w.__SR, g = S.game;
+
+  // count every node the music engine asks for
+  var AC = w.AudioContext || w.webkitAudioContext;
+  if (!AC) { out.textContent = JSON.stringify({ noAudioContext: true }); return; }
+  var counts = { osc: 0, noise: 0, gain: 0 };
+  var o1 = AC.prototype.createOscillator, o2 = AC.prototype.createBufferSource, o3 = AC.prototype.createGain;
+  AC.prototype.createOscillator = function () { counts.osc++; return o1.apply(this, arguments); };
+  AC.prototype.createBufferSource = function () { counts.noise++; return o2.apply(this, arguments); };
+  AC.prototype.createGain = function () { counts.gain++; return o3.apply(this, arguments); };
+
+  S.setMode('normal');
+  S.startGame();
+  S.game.invincible = true;
+
+  setTimeout(function () {
+    R.oscillators = counts.osc;
+    R.noiseSources = counts.noise;
+    R.gainNodes = counts.gain;
+    R.musicScheduled = counts.osc > 0 && counts.noise > 0;
+
+    // crashing must stop the loop without throwing
+    var before = counts.osc;
+    g.invincible = false;
+    for (var i = 0; i < 4000 && g.state === 'playing'; i++) { S.onRelease(); S.step(1 / 60); }
+    R.died = g.state !== 'playing';
+    for (var j = 0; j < 60; j++) S.step(1 / 60);
+    R.stateAfterCrash = g.state;
+    R.err = S.info().err;
+    out.textContent = JSON.stringify(R, null, 1);
+  }, 500);
+}
+f.addEventListener('load', function () { setTimeout(run, 250); });
+</script>
+</body></html>

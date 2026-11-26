@@ -510,11 +510,113 @@ var Sound = (function () {
     s.connect(f); f.connect(g); g.connect(master);
     s.start(t0); s.stop(t0 + dur);
   }
+  /* ---- music ----
+     A four-bar loop in D minor (Dm - Bb - F - C), scheduled a fraction of a
+     second ahead of the audio clock so the timing never depends on the frame
+     rate. Tempo creeps up with the run speed. */
+  var mus = { on: false, step: 0, next: 0, timer: null, gain: null, tempo: 0.148 };
+  var CHORDS = [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]];
+
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function mGain() {
+    if (!mus.gain) {
+      mus.gain = ac.createGain();
+      mus.gain.gain.value = 0.0001;
+      mus.gain.connect(master);
+    }
+    return mus.gain;
+  }
+  function mNote(t, freq, dur, type, vol, cutoff) {
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'triangle';
+    o.frequency.setValueAtTime(freq, t);
+    if (cutoff) {
+      var f = ac.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = cutoff;
+      o.connect(f); f.connect(g);
+    } else o.connect(g);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(mGain());
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function mKick(t) {
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(135, t);
+    o.frequency.exponentialRampToValueAtTime(46, t + 0.11);
+    g.gain.setValueAtTime(0.85, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+    o.connect(g); g.connect(mGain());
+    o.start(t); o.stop(t + 0.2);
+  }
+  function mNoise(t, dur, vol, freq, q) {
+    var src = ac.createBufferSource(); src.buffer = noiseBuf;
+    var f = ac.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    var g = ac.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(mGain());
+    src.start(t); src.stop(t + dur + 0.01);
+  }
+  function playStep(i, t) {
+    var bar = (i / 16) | 0, s = i % 16, ch = CHORDS[bar];
+    if (s % 4 === 0) mNote(t, hz(ch[0] - 12), 0.24, 'triangle', 0.5, 900);      // bass
+    if (s === 6 || s === 14) mNote(t, hz(ch[0]), 0.11, 'triangle', 0.3, 1100);  // bass lift
+    if (s % 2 === 0) {                                                          // arpeggio
+      var idx = [0, 1, 2, 1][(s / 2) % 4];
+      mNote(t, hz(ch[idx] + 12), 0.13, 'square', 0.11, 2600);
+    }
+    if (s === 0 || s === 8) mKick(t);
+    if (s === 4 || s === 12) mNoise(t, 0.13, 0.26, 1900, 0.9);                  // snare
+    if (s % 2 === 0) mNoise(t, 0.028, 0.1, 7200, 0.7);                          // hat
+    if (s === 15 && bar === 3) mNote(t, hz(ch[2] + 24), 0.3, 'sine', 0.12, 5200);
+  }
+  function mTick() {
+    if (!mus.on || !ac) return;
+    while (mus.next < ac.currentTime + 0.18) {
+      playStep(mus.step, mus.next);
+      mus.next += mus.tempo;
+      mus.step = (mus.step + 1) % 64;
+    }
+  }
+  function startMusic() {
+    if (muted || !ensure() || mus.on) return;
+    mus.on = true;
+    mus.step = 0;
+    mus.next = ac.currentTime + 0.08;
+    var g = mGain();
+    g.gain.cancelScheduledValues(ac.currentTime);
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.6, ac.currentTime + 1.1);
+    if (!mus.timer) mus.timer = setInterval(mTick, 25);
+  }
+  function stopMusic() {
+    if (!mus.on) return;
+    mus.on = false;
+    if (mus.gain && ac) {
+      var g = mus.gain.gain;
+      g.cancelScheduledValues(ac.currentTime);
+      g.setValueAtTime(Math.max(0.0001, g.value), ac.currentTime);
+      g.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.35);
+    }
+  }
+  function setMusicTempo(speed) {
+    mus.tempo = clamp(0.150 - (speed - 400) * 0.000026, 0.108, 0.152);
+  }
+
   return {
     unlock: ensure,
+    startMusic: startMusic,
+    stopMusic: stopMusic,
+    setMusicTempo: setMusicTempo,
     setMuted: function (m) {
       muted = m;
       if (master) master.gain.value = m ? 0 : 0.22;
+      if (m) stopMusic();
+      else if (game.state === 'playing' && !game.paused) startMusic();
       try { localStorage.setItem('sprout.raptor.muted', m ? '1' : '0'); } catch (e) {}
     },
     jump: function () { tone(340, 620, 0.14, 'triangle', 0.34); },
@@ -1224,7 +1326,7 @@ function onPress() {
   if (game.state === 'menu') { startGame(); return; }
   if (game.state === 'over') { if (game.overT > 0.45) startGame(); return; }
   if (game.state === 'playing') {
-    if (game.paused) { game.paused = false; hidePause(); return; }
+    if (game.paused) { game.paused = false; hidePause(); Sound.startMusic(); return; }
     player.holding = true;
     if (player.onGround || player.coyote > 0) {
       doJump(false);
@@ -1400,6 +1502,7 @@ function showPause() {
     game.paused = false; hidePause();
   });
   document.body.appendChild(pauseEl);
+  Sound.stopMusic();
   onRelease();
 }
 function hidePause() { if (pauseEl) { pauseEl.remove(); pauseEl = null; } }
@@ -1433,6 +1536,7 @@ function startGame() {
   el.score.textContent = '0';
   el.eggCount.textContent = '0';
   Sound.start();
+  Sound.startMusic();
 }
 
 function gameOver() {
@@ -1511,6 +1615,7 @@ function update(dt) {
   var M = game.M || cfg();
   game.speed = M.start + game.t * M.ramp;   // no ceiling
   var sp = game.speed;
+  Sound.setMusicTempo(sp);
   game.worldX += sp * dt;
 
   // physics
@@ -1663,6 +1768,7 @@ function die() {
   player.deadRot = 0;
   player.holding = false;
   Sound.crash();
+  Sound.stopMusic();
   puff(player.x + 10, groundY - player.y - 30, 16, 130, 'rgba(250,200,170,', 120);
   burst(player.x + 20, groundY - player.y - 50, 16, 'rgba(255,214,140,0.95)');
   if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) {} }

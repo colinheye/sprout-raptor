@@ -2,7 +2,7 @@
 
 A one-thumb endless runner starring a blonde toddler and his velociraptor. Runs in any
 modern phone or desktop browser. No build step, no dependencies, no server — the whole
-game is one `index.html` with procedurally drawn art and synthesized sound.
+game is one `index.html` with procedurally drawn art and a synthesized chiptune loop.
 
 ![Gameplay](docs/preview-gameplay.png)
 
@@ -13,7 +13,7 @@ game is one `index.html` with procedurally drawn art and synthesized sound.
 | **Tap / click / Space** | Jump |
 | **Hold** | Jump higher |
 | **Tap again mid-air** | Double jump |
-| **M** | Mute |
+| **M** | Mute (music + effects) |
 | **1 / 2 / 3** | Pick difficulty in the menu |
 
 Keep the pair out of rocks, stumps, bone piles, boulders, tall rock spires and
@@ -122,6 +122,8 @@ Most knobs are near the top of the `<script>` in `index.html`:
 | Obstacle spacing | `spawnObstacle()` → `closing * rand(M.gap[0], M.gap[1])` | |
 | Egg frequency | `spawnEggArc()` → `game.speed * rand(2.3, 3.6)` | |
 | Colours | the `C` palette object | dusk jungle |
+| Music | `Sound` module → `CHORDS`, `playStep()`, `mus.tempo` | Dm–Bb–F–C loop, 0.15 s/step at 420 speed |
+| Music level | `startMusic()` → ramp target | `0.6` of master, kept under the effects |
 | Character art | `drawRig()` / `drawBoy()` / `drawObstacle()` | vector, no image files |
 
 Difficulty is governed by that one speed line plus the spawn gaps: if you raise the
