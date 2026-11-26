@@ -483,6 +483,20 @@ var Sound = (function () {
     noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
     var d = noiseBuf.getChannelData(0);
     for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // iOS silently refuses to run WebAudio until a buffer has been played from
+    // inside a user gesture; a one-sample silent buffer is the usual unlock.
+    try {
+      var unlockBuf = ac.createBuffer(1, 1, ac.sampleRate);
+      var unlockSrc = ac.createBufferSource();
+      unlockSrc.buffer = unlockBuf;
+      unlockSrc.connect(ac.destination);
+      unlockSrc.start(0);
+    } catch (e) {}
+    // if the context was suspended (phone call, backgrounding) re-anchor the
+    // music clock when it comes back, otherwise its schedule is in the past
+    ac.addEventListener('statechange', function () {
+      if (ac.state === 'running' && mus.on) mus.next = ac.currentTime + 0.08;
+    });
     return true;
   }
   function tone(f0, f1, dur, type, vol, delay) {
@@ -576,6 +590,7 @@ var Sound = (function () {
   }
   function mTick() {
     if (!mus.on || !ac) return;
+    if (mus.next < ac.currentTime - 0.4) mus.next = ac.currentTime + 0.05;
     while (mus.next < ac.currentTime + 0.18) {
       playStep(mus.step, mus.next);
       mus.next += mus.tempo;
